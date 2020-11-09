@@ -33,22 +33,22 @@ RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go test ./... -cover
 
 WORKDIR /go/src/handler
 RUN CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build --ldflags "-s -w" -a -installsuffix cgo -o handler .
+RUN touch temp.delete
 
 FROM --platform=${TARGETPLATFORM:-linux/amd64} busybox:1.32.0-glibc
 # Add non root user and certs
-RUN apk --no-cache add ca-certificates \
-    && addgroup -S app && adduser -S -g app app \
+RUN addgroup -S app && adduser -S -G app app \
     && mkdir -p /home/app \
     && chown app /home/app
 
 WORKDIR /home/app
 
-COPY --from=build --chown=app /go/src/handler/handler    .
-COPY --from=build --chown=app /usr/bin/fwatchdog         .
-COPY --from=build --chown=app /go/src/handler/function/  .
-COPY --from=build --chown=app /go/src/handler/bin  ./bin
+COPY --from=build --chown=app /go/src/handler/handler .
+COPY --from=build --chown=app /usr/bin/fwatchdog .
+COPY --from=build --chown=app /go/src/handler/function/ .
+COPY --from=build --chown=app /go/src/handler/temp.delete /go/src/handler/bin/* bin/
 
-RUN chmod +x /go/src/handler/bin/*
+RUN rm -rf bin/temp.delete && chmod +x bin/* || exit 0
 
 USER app
 
